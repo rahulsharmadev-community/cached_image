@@ -8,9 +8,7 @@
 .buildlog/
 .history
 .svn/
-.metadata
-analysis_options.yaml
-
+migrate_working_dir/
 
 # IntelliJ related
 *.iml
@@ -33,19 +31,6 @@ analysis_options.yaml
 .pub-cache/
 .pub/
 /build/
-build/
-ios/
-android/
-linux/
-web/
-windows/
-macos/
-
-
-*.lock
-
-# Web related
-lib/generated_plugin_registrant.dart
 
 # Symbolication related
 app.*.symbols

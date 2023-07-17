@@ -10,6 +10,8 @@ import 'dart:ui' as ui;
 import 'src/storage/cached_storage.dart';
 import 'package:logs/logs.dart';
 
+export 'src/storage/cached_storage.dart' show CachedStorage;
+
 class CachedImage extends StatefulWidget {
   final String url;
   final BoxFit? fit;
@@ -57,22 +59,24 @@ class CachedImage extends StatefulWidget {
   static const _password = 'password.cached_images';
   static const _key = 'key.cached_images';
 
-  static CachedStorage? _cachedStorage;
+  static final CachedStorage CachedManager = CachedStorage(_password, _key);
 
-  static Future<void> open() async =>
-      _cachedStorage = await CachedStorage.openCachedBox(_password, _key);
+  static Future<void> open() async => CachedManager.openCachedBox();
 
-  static Future<void> close() => _cachedStorage!.close();
-  static Uint8List? getImage(String key) => _cachedStorage!.read(key);
+  static Future<void> close() => CachedManager.close();
+
+  static Future<void> clear() => CachedManager.clear();
+
+  static Future<Uint8List?> getImage(String key) async =>
+      await CachedManager.read(key);
 
   /// If the key is present, invokes [update] with the
   /// current Uint8List and stores the new Uint8List in the map.
-  static Future<void> addNewImages(Map<String, Uint8List> map) {
-    return _cachedStorage!.write(map);
-  }
+  static void addNewImages(Map<String, Uint8List> map) =>
+      CachedManager.write(map);
 
   static Future<void> removeImages(List<String> keys) =>
-      _cachedStorage!.delete(keys);
+      CachedManager.delete(keys);
 }
 
 class _CachedImageState extends State<CachedImage>
@@ -100,7 +104,7 @@ class _CachedImageState extends State<CachedImage>
 
   ///[_loadImage] Not public API.
   Future<_ImageInfo> _loadImage(url) async {
-    final bytes = CachedImage.getImage(url);
+    final bytes = await CachedImage.getImage(url);
     if (bytes != null) {
       return _byteToImage(bytes);
     } else {
@@ -178,7 +182,10 @@ class _CachedImageState extends State<CachedImage>
   Widget build(BuildContext context) {
     super.build(context);
     if (_imageInfo == null) {
-      return const SizedBox();
+      return SizedBox(
+        width: widget.width,
+        height: widget.height,
+      );
     } else {
       if (_imageInfo!.hasError) {
         final stack = StackTrace.fromString(_imageInfo!.errorMsg!);
@@ -262,19 +269,23 @@ class _CachedImageState extends State<CachedImage>
 }
 
 class CachedDataProgress {
-  ///[downloadedBytes] represents the downloaded size(in bytes) of the image. This value increases and reaches the [totalBytes] when image is fully downloaded.
+  ///[downloadedBytes] represents the downloaded size(in bytes) of the image.
+  ///This value increases and reaches the [totalBytes] when image is fully downloaded.
   int downloadedBytes;
 
-  ///[totalBytes] represents the actual size(in bytes) of the image. This value can be null if the size is not obtained from the image.
+  ///[totalBytes] represents the actual size(in bytes) of the image.
+  ///This value can be null if the size is not obtained from the image.
   int? totalBytes;
 
   ///[progressPercentage] gives the download progress of the image
   ValueNotifier<double> progressPercentage;
 
-  ///[isDownloading] will be true if the image is to be download, and will be false if the image is already in the cache
+  ///[isDownloading] will be true if the image is to be download,
+  ///and will be false if the image is already in the cache
   bool isDownloading;
 
-  ///[CachedDataProgress] has the data representing the download progress and total size of the image.
+  ///[CachedDataProgress] has the data representing the download
+  ///progress and total size of the image.
   CachedDataProgress(
       {ValueNotifier<double>? progressPercentage,
       this.totalBytes,
