@@ -1,6 +1,5 @@
 import 'package:cached_image/cached_image.dart';
 import 'package:flutter/material.dart';
-import 'urls.dart';
 
 void main(List<String> args) async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -65,10 +64,21 @@ class _HomePageState extends State<HomePage> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-        appBar: AppBar(),
-        body: ListView.builder(
-          itemCount: urls.length,
-          itemBuilder: (context, i) => CachedImage(urls[i]),
-        ));
+      backgroundColor: Colors.amberAccent,
+      appBar: AppBar(),
+      body: CachedImage(
+        'https://images.pexels.com/photos/235222/pexels-photo-235222.jpeg',
+        fit: BoxFit.fitWidth,
+        loadingBuilder: (ctx, p1) => Container(
+          width: 323,
+          height: 440,
+          color: Colors.red,
+          child: Text(
+            '${p1.downloadedBytes} <--',
+            style: const TextStyle(fontSize: 32),
+          ),
+        ),
+      ),
+    );
   }
 }

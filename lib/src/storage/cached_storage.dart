@@ -70,11 +70,8 @@ class CachedStorage implements StorageInterface {
   /// It will take care of repeatedly opening and closing
   /// the box by resetting the [box] variable.
   Future<Box?> openCachedBox() async {
-    return _box = Hive.isBoxOpen(key)
-        ? Hive.box(key)
-        : await _lock.synchronized(() => Hive.openBox<dynamic>(key,
-            encryptionCipher:
-                HiveAesCipher(sha256.convert(utf8.encode(password)).bytes)));
+    return _box =
+        Hive.isBoxOpen(key) ? Hive.box(key) : await Hive.openBox<dynamic>(key);
   }
 
   Map<String, dynamic> _queue = {};

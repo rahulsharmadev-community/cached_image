@@ -6,7 +6,6 @@ import 'package:dio/dio.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter/widgets.dart';
-import 'dart:ui' as ui;
 import 'src/storage/cached_storage.dart';
 import 'package:logs/logs.dart';
 
@@ -106,33 +105,15 @@ class _CachedImageState extends State<CachedImage>
   Future<_ImageInfo> _loadImage(url) async {
     final bytes = await CachedImage.getImage(url);
     if (bytes != null) {
-      return _byteToImage(bytes);
+      return _ImageInfo.image(bytes);
     } else {
       final downloadResp = await _downloadImageAndUpdateProgress(url);
       if (downloadResp.$1 != null && downloadResp.$2 == null) {
         CachedImage.addNewImages({url: downloadResp.$1!});
-        return _byteToImage(downloadResp.$1!);
+        return _ImageInfo.image(downloadResp.$1!);
       } else {
         return _ImageInfo.error(downloadResp.$2);
       }
-    }
-  }
-
-  ///[_byteToImage] Not public API.
-  Future<_ImageInfo> _byteToImage(Uint8List byte) async {
-    try {
-      final buffer = await ImmutableBuffer.fromUint8List(byte);
-      final descriptor = await ui.ImageDescriptor.encoded(buffer);
-      final codec = await descriptor.instantiateCodec();
-      ui.FrameInfo frameInfo = await codec.getNextFrame();
-      if (mounted) {
-        buffer.dispose();
-        descriptor.dispose();
-        codec.dispose();
-      }
-      return _ImageInfo.image(frameInfo.image);
-    } catch (e) {
-      return _ImageInfo.error('$e');
     }
   }
 
@@ -181,7 +162,16 @@ class _CachedImageState extends State<CachedImage>
   @override
   Widget build(BuildContext context) {
     super.build(context);
-    if (_imageInfo == null) {
+    print('Render');
+    if (widget.loadingBuilder != null && _progressData.isDownloading)
+      return ValueListenableBuilder(
+          valueListenable: _progressData.progressPercentage,
+          builder: (context, p, c) {
+            print(widget.loadingBuilder != null);
+            print(_progressData.isDownloading);
+            return widget.loadingBuilder!(context, _progressData);
+          });
+    else if (_imageInfo == null) {
       return SizedBox(
         width: widget.width,
         height: widget.height,
@@ -196,8 +186,8 @@ class _CachedImageState extends State<CachedImage>
           return _debugBuildErrorWidget(context, _imageInfo!.errorMsg!);
         }
       }
-      Widget result = RawImage(
-        image: _imageInfo!.image,
+      Widget result = Image.memory(
+        _imageInfo!.bytes!,
         width: widget.width,
         height: widget.height,
         scale: widget.scale,
@@ -220,10 +210,6 @@ class _CachedImageState extends State<CachedImage>
           child: result,
         );
       }
-      if (widget.loadingBuilder != null) {
-        result = widget.loadingBuilder!(context, _progressData);
-      }
-
       return result;
     }
   }
@@ -232,7 +218,9 @@ class _CachedImageState extends State<CachedImage>
       String url) async {
     try {
       //set is downloading flag to true
-      _progressData.isDownloading = true;
+      setState(() {
+        _progressData.isDownloading = true;
+      });
       if (widget.loadingBuilder != null) {
         widget.loadingBuilder!(context, _progressData);
       }
@@ -247,11 +235,14 @@ class _CachedImageState extends State<CachedImage>
           _progressData.totalBytes = total;
           _progressData.progressPercentage.value =
               double.parse((received / total).toStringAsFixed(2));
+          _progressData.progressPercentage.notifyListeners();
           widget.loadingBuilder!(context, _progressData);
         }
       });
-      _progressData.isDownloading = false;
+
       final Uint8List bytes = response.data;
+      _progressData.isDownloading = false;
+      setState(() {});
       if (response.statusCode != 200) {
         var msg = '${response.statusCode}: ${response.statusMessage}';
         logs.severeError(msg);
@@ -295,11 +286,11 @@ class CachedDataProgress {
 }
 
 class _ImageInfo {
-  final ui.Image? image;
+  final Uint8List? bytes;
   final String? errorMsg;
-  const _ImageInfo.image(this.image) : errorMsg = null;
-  const _ImageInfo.error(this.errorMsg) : image = null;
+  const _ImageInfo.image(this.bytes) : errorMsg = null;
+  const _ImageInfo.error(this.errorMsg) : bytes = null;
 
-  bool get hasError => errorMsg != null && image == null;
-  bool get hasBytes => errorMsg == null && image != null;
+  bool get hasError => errorMsg != null && bytes == null;
+  bool get hasBytes => errorMsg == null && bytes != null;
 }
