@@ -1,12 +1,28 @@
+import 'package:example/urls.dart';
+import 'package:path_provider/path_provider.dart';
 import 'package:cached_image/cached_image.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
+import 'package:hydrated_bloc/hydrated_bloc.dart';
 
 void main(List<String> args) async {
   WidgetsFlutterBinding.ensureInitialized();
-  await CachedStorage.init();
-  runApp(const MaterialApp(
-    home: AppScreen(),
-  ));
+
+  CachedImage.isolate = true;
+  HydratedBloc.storage = await HydratedStorage.build(
+    storageDirectory: kIsWeb
+        ? HydratedStorage.webStorageDirectory
+        : await getTemporaryDirectory(),
+  );
+
+  runApp(const FlutterApp());
+}
+
+class FlutterApp extends StatelessWidget {
+  const FlutterApp({super.key});
+
+  @override
+  Widget build(BuildContext context) => const MaterialApp(home: AppScreen());
 }
 
 class AppScreen extends StatelessWidget {
@@ -30,9 +46,7 @@ class AppScreen extends StatelessWidget {
               child: const Text('Open'),
             ),
             ElevatedButton(
-              onPressed: () async {
-                await CachedImage.clear();
-              },
+              onPressed: () => CachedImage.clear(),
               child: const Text('Delete'),
             ),
           ],
@@ -57,28 +71,27 @@ class _HomePageState extends State<HomePage> {
 
   @override
   void dispose() {
-    CachedImage.close();
     super.dispose();
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: Colors.amberAccent,
-      appBar: AppBar(),
-      body: CachedImage(
-        'https://images.pexels.com/photos/235222/pexels-photo-235222.jpeg',
-        fit: BoxFit.fitWidth,
-        loadingBuilder: (ctx, p1) => Container(
-          width: 323,
-          height: 440,
-          color: Colors.red,
-          child: Text(
-            '${p1.downloadedBytes} <--',
-            style: const TextStyle(fontSize: 32),
+        backgroundColor: Colors.amberAccent,
+        appBar: AppBar(),
+        body: GridView.builder(
+          itemCount: urls.length,
+          gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+            crossAxisCount: 4,
+            childAspectRatio: 16 / 9,
           ),
-        ),
-      ),
-    );
+          itemBuilder: (ctx, i) => CachedImage(
+            urls[i],
+            loadingBuilder: (ctx, value) => ValueListenableBuilder(
+              valueListenable: value.progressPercentage,
+              builder: (context, value, child) => Text('$value'),
+            ),
+          ),
+        ));
   }
 }
