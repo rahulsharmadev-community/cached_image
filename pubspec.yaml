@@ -14,10 +14,6 @@ dependencies:
   dio: ^5.2.1+1
   equatable: ^2.0.5
   hydrated_bloc: ^9.1.2
-  logs:
-    git:
-      url: https://github.com/rahulsharmadev-community/logs.git
-      ref: v0.0.1
 
 dev_dependencies:
   flutter_lints: ^2.0.0
