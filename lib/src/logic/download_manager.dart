@@ -34,7 +34,7 @@ class DownloadManage {
         // print('1 remove, remaning ${urls.length}');
         return e.value.response(_);
       }).onError((error, stackTrace) {
-        e.value.onError;
+        if (e.value.onError != null) e.value.onError!(error);
         return Response(requestOptions: RequestOptions());
       });
       futures.add(future);
