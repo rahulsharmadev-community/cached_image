@@ -6,7 +6,6 @@ import 'src/logic/download_manager.dart';
 import 'src/logic/object.dart';
 import 'src/logic/storage.dart';
 import 'package:dio/dio.dart';
-import 'package:logs/logs.dart';
 import 'package:flutter/widgets.dart';
 import 'package:flutter/foundation.dart';
 part 'src/widget/fade_in_out.dart';
@@ -147,7 +146,6 @@ class CachedImage extends StatefulWidget {
 
 class _CachedImageState extends State<CachedImage>
     with WidgetsBindingObserver, AutomaticKeepAliveClientMixin {
-  final Logs logs = Logs('CachedImage');
   @override
   bool get wantKeepAlive => true;
   _ImageInfo? _imageInfo;
@@ -381,15 +379,12 @@ class _CachedImageState extends State<CachedImage>
       _progressData.isDownloading = false;
       if (response.statusCode != 200) {
         var msg = '${response.statusCode}: ${response.statusMessage}';
-        logs.severeError(msg);
         return (null, msg);
       } else if (response.data.isEmpty && mounted) {
-        logs.severeError('Image is empty.');
         return (null, 'Image is empty.');
       }
       return (bytes, null);
     } catch (e) {
-      logs.severeError('$e');
       return (null, '$e');
     }
   }
