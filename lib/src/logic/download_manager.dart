@@ -27,12 +27,14 @@ class DownloadManage {
     for (var e in urls.entries) {
       var future = dio
           .get(e.value.url,
-              options: Options(responseType: ResponseType.bytes),
+              options: Options(
+                responseType: e.value.responseType,
+                headers: e.value.headers,
+              ),
               onReceiveProgress: e.value.onReceiveProgress)
           .then((_) {
         urls.remove('${_.realUri}');
-        // print('1 remove, remaning ${urls.length}');
-        return e.value.response(_);
+        return e.value.response(_, e.value.onReceiveProgress);
       }).onError((error, stackTrace) {
         if (e.value.onError != null) e.value.onError!(error);
         return Response(requestOptions: RequestOptions());

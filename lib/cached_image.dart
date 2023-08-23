@@ -48,6 +48,8 @@ class _ImageInfo {
   bool get hasBytes => errorMsg == null && bytes != null;
 }
 
+enum RequestResponseType { json, bytes }
+
 class CachedImage extends StatefulWidget {
   final String url;
   final BoxFit? fit;
@@ -97,6 +99,22 @@ class CachedImage extends StatefulWidget {
   /// image loading.
   final ImageErrorWidgetBuilder? placeholderErrorBuilder;
 
+  /// json:  content-type of response is "application/json"
+  /// bytes: Get the original bytes, the [Response.data] will be [List<int>].
+  final RequestResponseType responseType;
+
+  ///```
+  /// {
+  /// 'Content-Type': 'application/json',
+  /// 'Authorization': 'Bearer $token',
+  ///  ......etc
+  /// }
+  /// ```
+  final Map<String, String>? headers;
+
+  final FutureOr<Uint8List> Function(dynamic, void Function(int, int))?
+      response;
+
   const CachedImage(
     this.url, {
     Key? key,
@@ -125,6 +143,9 @@ class CachedImage extends StatefulWidget {
     this.fadeOutCurve = Curves.easeOut,
     this.fadeInDuration = const Duration(milliseconds: 700),
     this.fadeInCurve = Curves.easeIn,
+    this.responseType = RequestResponseType.bytes,
+    this.headers,
+    this.response,
   }) : super(key: key);
   @override
   State<CachedImage> createState() => _CachedImageState();
@@ -359,23 +380,31 @@ class _CachedImageState extends State<CachedImage>
     }
 
     Response? responseTemp;
-    Response responseFunction(Response resp) {
+    Uint8List? bytesResponse;
+
+    FutureOr<Response> responseFunction(
+      Response resp,
+      void Function(int, int) onProgress,
+    ) async {
+      bytesResponse = widget.response != null
+          ? await widget.response!(resp.data, onProgress)
+          : resp.data;
       responseTemp = resp;
       return resp;
     }
 
     try {
-      downloadManage.download(
-        DownloadObject(
-            url: url,
-            onReceiveProgress: onReceiveProgress,
-            response: responseFunction),
-      );
+      downloadManage.download(DownloadObject(
+          url: url,
+          headers: widget.headers,
+          onReceiveProgress: onReceiveProgress,
+          response: responseFunction,
+          responseType: ResponseType.values.byName(widget.responseType.name)));
       await waitForResponse(() => responseTemp == null);
 
-      var response = responseTemp!;
+      final response = responseTemp!;
+      final bytes = bytesResponse!;
 
-      final Uint8List bytes = response.data;
       _progressData.isDownloading = false;
       if (response.statusCode != 200) {
         var msg = '${response.statusCode}: ${response.statusMessage}';
