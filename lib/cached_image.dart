@@ -2,6 +2,7 @@ library cached_image;
 
 import 'dart:async';
 import 'package:cached_image/src/const/kTransparent.dart';
+import 'package:crypto/crypto.dart';
 import 'src/logic/download_manager.dart';
 import 'src/logic/object.dart';
 import 'src/logic/storage.dart';
@@ -114,7 +115,7 @@ class CachedImage extends StatefulWidget {
 
   final FutureOr<Uint8List> Function(dynamic, void Function(int, int))?
       response;
-
+  final String? location;
   const CachedImage(
     this.url, {
     Key? key,
@@ -139,30 +140,25 @@ class CachedImage extends StatefulWidget {
     this.placeholderErrorBuilder,
     this.placeholderFit,
     this.placeholderFilterQuality,
-    this.fadeOutDuration = const Duration(milliseconds: 300),
+    this.fadeOutDuration = const Duration(milliseconds: 150),
     this.fadeOutCurve = Curves.easeOut,
-    this.fadeInDuration = const Duration(milliseconds: 700),
+    this.fadeInDuration = const Duration(milliseconds: 350),
     this.fadeInCurve = Curves.easeIn,
     this.responseType = RequestResponseType.bytes,
     this.headers,
     this.response,
+    this.location,
   }) : super(key: key);
   @override
   State<CachedImage> createState() => _CachedImageState();
 
   static bool isolate = false;
+  static CachedStorage? storage;
 
-  static final CachedStorage storage = CachedStorage({});
+  static void initialize([String defaultLocation = '']) =>
+      storage ??= CachedStorage(defaultLocation);
 
-  static void clear() => storage.clearAll();
-
-  static Uint8List? getImage(String key) => storage.state[key];
-
-  /// If the key is present, invokes [update] with the
-  /// current Uint8List and stores the new Uint8List in the map.
-  static void addNewImages(Map<String, Uint8List> map) => storage.add(map);
-
-  static void removeImages(List<String> keys) => storage.remove(keys);
+  static void clearAll(String location) => storage!.clearAll(location);
 }
 
 class _CachedImageState extends State<CachedImage>
@@ -186,14 +182,17 @@ class _CachedImageState extends State<CachedImage>
   }
 
   ///[_loadImage] Not public API.
-  Future<_ImageInfo> _loadImage(url) async {
-    final bytes = CachedImage.getImage(url);
+  Future<_ImageInfo> _loadImage(String url) async {
+    var clurl = _urlCleaner(url);
+    var token = "${_getToken(clurl)}.${_getExt(clurl)}";
+    final bytes = await CachedImage.storage!.read(token, widget.location);
     if (bytes != null) {
       return _ImageInfo.image(bytes);
     } else {
       final downloadResp = await _downloadImageAndUpdateProgress(url);
       if (downloadResp.$1 != null && downloadResp.$2 == null) {
-        CachedImage.addNewImages({url: downloadResp.$1!});
+        await CachedImage.storage!
+            .writeNewFile(token, downloadResp.$1!, widget.location);
         return _ImageInfo.image(downloadResp.$1!);
       } else {
         return _ImageInfo.error(downloadResp.$2);
@@ -424,4 +423,11 @@ class _CachedImageState extends State<CachedImage>
           const Duration(milliseconds: 10)); // Adjust the delay as needed
     }
   }
+}
+
+String _getToken(String bytes) => '${sha256.convert(bytes.codeUnits)}';
+String _getExt(String clurl) => clurl.substring(clurl.lastIndexOf('.') + 1);
+String _urlCleaner(String url) {
+  int x = url.lastIndexOf('?');
+  return x == -1 ? url : url.substring(0, x);
 }

@@ -1,20 +1,11 @@
 import 'package:example/urls.dart';
-import 'package:path_provider/path_provider.dart';
 import 'package:cached_image/cached_image.dart';
-import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
-import 'package:hydrated_bloc/hydrated_bloc.dart';
 
 void main(List<String> args) async {
   WidgetsFlutterBinding.ensureInitialized();
-
   CachedImage.isolate = true;
-  HydratedBloc.storage = await HydratedStorage.build(
-    storageDirectory: kIsWeb
-        ? HydratedStorage.webStorageDirectory
-        : await getTemporaryDirectory(),
-  );
-
+  CachedImage.initialize('Class A');
   runApp(const FlutterApp());
 }
 
@@ -31,26 +22,37 @@ class AppScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      body: Center(
-        child: Row(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            ElevatedButton(
-              onPressed: () {
-                Navigator.push(
-                    context,
-                    MaterialPageRoute(
-                      builder: (context) => const HomePage(),
-                    ));
-              },
-              child: const Text('Open'),
-            ),
-            ElevatedButton(
-              onPressed: () => CachedImage.clear(),
-              child: const Text('Delete'),
-            ),
-          ],
-        ),
+      body: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          ElevatedButton(
+            onPressed: () {
+              Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (context) => const HomePage(),
+                  ));
+            },
+            child: const Text('Open'),
+          ),
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+            children: [
+              ElevatedButton(
+                onPressed: () => CachedImage.clearAll('Class A'),
+                child: const Text('Delete Class A'),
+              ),
+              ElevatedButton(
+                onPressed: () => CachedImage.clearAll('Class B'),
+                child: const Text('Delete Class B'),
+              ),
+              ElevatedButton(
+                onPressed: () => CachedImage.clearAll(''),
+                child: const Text('Delete All'),
+              ),
+            ],
+          ),
+        ],
       ),
     );
   }
@@ -74,24 +76,71 @@ class _HomePageState extends State<HomePage> {
     super.dispose();
   }
 
+  bool isGrid = true;
+
   @override
   Widget build(BuildContext context) {
+    final widgets = List<Widget>.generate(urls.length, (i) => itemWidget(i));
+
     return Scaffold(
         backgroundColor: Colors.amberAccent,
-        appBar: AppBar(),
-        body: GridView.builder(
-          itemCount: urls.length,
-          gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-            crossAxisCount: 4,
-            childAspectRatio: 16 / 9,
-          ),
-          itemBuilder: (ctx, i) => CachedImage(
-            urls[i],
-            loadingBuilder: (ctx, value) => ValueListenableBuilder(
-              valueListenable: value.progressPercentage,
-              builder: (context, value, child) => Text('$value'),
+        appBar: AppBar(
+          actions: [
+            IconButton(
+                onPressed: () => setState(() => isGrid = !isGrid),
+                icon: Icon(isGrid ? Icons.list : Icons.grid_on))
+          ],
+        ),
+        body: isGrid
+            ? GridView.builder(
+                itemCount: widgets.length,
+                gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+                    crossAxisCount: 3),
+                itemBuilder: (ctx, i) => widgets[i])
+            : ListView.builder(
+                itemCount: widgets.length,
+                itemBuilder: (ctx, i) => widgets[i],
+              ));
+  }
+
+  CachedImage itemWidget(int i) {
+    return CachedImage(
+      urls[i],
+      fit: BoxFit.cover,
+      location: i % 2 == 0 ? 'Class B' : null,
+      loadingBuilder: (ctx, value) => ValueListenableBuilder(
+        valueListenable: value.progressPercentage,
+        builder: (context, value, child) => Stack(
+          alignment: Alignment.center,
+          children: [
+            isGrid
+                ? SizedBox.square(
+                    dimension: 60,
+                    child: FittedBox(
+                      fit: BoxFit.fill,
+                      child: CircularProgressIndicator.adaptive(
+                        value: value,
+                        semanticsLabel: value.toString(),
+                        semanticsValue: value.toString(),
+                      ),
+                    ),
+                  )
+                : LinearProgressIndicator(
+                    value: value,
+                    minHeight: 42,
+                    semanticsLabel: value.toString(),
+                    semanticsValue: value.toString(),
+                  ),
+            Text(
+              '${value * 100}%',
+              style: TextStyle(
+                fontSize: isGrid ? 16 : 20,
+                fontWeight: FontWeight.w500,
+              ),
             ),
-          ),
-        ));
+          ],
+        ),
+      ),
+    );
   }
 }

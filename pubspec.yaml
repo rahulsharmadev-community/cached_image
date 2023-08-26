@@ -1,6 +1,7 @@
 name: cached_image
-description: Flutter library for effortless loading and display of diverse web image formats with efficient caching, ensuring optimal performance.
-version: 0.1.1
+description: Flutter library for effortless loading and display of diverse web
+  image formats with efficient caching, ensuring optimal performance.
+version: 1.0.0
 homepage: "https://github.com/rahulsharmadev-community"
 
 publish_to: "none"
@@ -11,9 +12,12 @@ environment:
 dependencies:
   flutter:
     sdk: flutter
+  crypto: ^3.0.3
   dio: ^5.2.1+1
-  equatable: ^2.0.5
-  hydrated_bloc: ^9.1.2
+  path_provider: ^2.1.0
+  permission_handler: ^10.4.3
+  
+
 
 dev_dependencies:
   flutter_lints: ^2.0.0

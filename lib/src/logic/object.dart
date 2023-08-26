@@ -1,8 +1,7 @@
 import 'dart:async';
 import 'package:dio/dio.dart' as dio;
-import 'package:equatable/equatable.dart';
 
-class DownloadObject extends Equatable {
+class DownloadObject {
   final String url;
   final Function(int, int) onReceiveProgress;
 
@@ -24,5 +23,12 @@ class DownloadObject extends Equatable {
   });
 
   @override
-  List<Object?> get props => [url, onReceiveProgress, response, onError];
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      other is DownloadObject &&
+          runtimeType == other.runtimeType &&
+          url == other.url;
+
+  @override
+  int get hashCode => url.hashCode;
 }
