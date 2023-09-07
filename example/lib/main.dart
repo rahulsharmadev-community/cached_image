@@ -66,13 +66,17 @@ class HomePage extends StatefulWidget {
 }
 
 class _HomePageState extends State<HomePage> {
+  var images = List.generate(10, (i) => urls[i]);
+  late ScrollController controller;
   @override
   void initState() {
     super.initState();
+    controller = ScrollController();
   }
 
   @override
   void dispose() {
+    controller.dispose();
     super.dispose();
   }
 
@@ -80,10 +84,25 @@ class _HomePageState extends State<HomePage> {
 
   @override
   Widget build(BuildContext context) {
-    final widgets = List<Widget>.generate(urls.length, (i) => itemWidget(i));
-
+    final widgets = List<Widget>.generate(images.length, (i) => itemWidget(i));
+    print('Rebuild__Screen');
     return Scaffold(
         backgroundColor: Colors.amberAccent,
+        bottomNavigationBar: Row(
+          mainAxisAlignment: MainAxisAlignment.spaceAround,
+          children: [
+            IconButton(
+                onPressed: () {
+                  setState(() => images = [urls[images.length], ...images]);
+                },
+                icon: const Icon(Icons.add)),
+            IconButton(
+                onPressed: () {
+                  setState(() => images.removeLast());
+                },
+                icon: const Icon(Icons.minimize))
+          ],
+        ),
         appBar: AppBar(
           actions: [
             IconButton(
@@ -98,12 +117,28 @@ class _HomePageState extends State<HomePage> {
                     crossAxisCount: 3),
                 itemBuilder: (ctx, i) => widgets[i])
             : ListView.builder(
+                reverse: true,
+                controller: controller,
                 itemCount: widgets.length,
                 itemBuilder: (ctx, i) => widgets[i],
               ));
   }
 
-  CachedImage itemWidget(int i) {
+  Widget itemWidget(int i) => DisplayImage(i: i, isGrid: isGrid);
+}
+
+class DisplayImage extends StatelessWidget {
+  const DisplayImage({
+    super.key,
+    required this.i,
+    required this.isGrid,
+  });
+
+  final int i;
+  final bool isGrid;
+
+  @override
+  Widget build(BuildContext context) {
     return CachedImage(
       urls[i],
       fit: BoxFit.cover,

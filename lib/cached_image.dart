@@ -181,12 +181,15 @@ class _CachedImageState extends State<CachedImage>
     if (mounted) setState(() {});
   }
 
+  bool hasCached = false;
+
   ///[_loadImage] Not public API.
   Future<_ImageInfo> _loadImage(String url) async {
     var clurl = _urlCleaner(url);
     var token = "${_getToken(clurl)}.${_getExt(clurl)}";
     final bytes = await CachedImage.storage!.read(token, widget.location);
     if (bytes != null) {
+      hasCached = true;
       return _ImageInfo.image(bytes);
     } else {
       final downloadResp = await _downloadImageAndUpdateProgress(url);
@@ -310,6 +313,8 @@ class _CachedImageState extends State<CachedImage>
 
       var image = MemoryImage(_imageInfo!.bytes!, scale: widget.scale);
 
+      var hasNoFade = (widget.fadeInDuration == Duration.zero ||
+          widget.fadeOutDuration == Duration.zero);
       Widget result = _image(
         image: image,
         fit: widget.fit,
@@ -319,31 +324,33 @@ class _CachedImageState extends State<CachedImage>
         filterQuality: widget.filterQuality,
         colorBlendMode: widget.colorBlendMode,
         semanticLabel: widget.semanticLabel,
-        frameBuilder: (BuildContext context, Widget child, int? frame,
-            bool wasSynchronouslyLoaded) {
-          if (wasSynchronouslyLoaded || frame != null) {
-            targetLoaded = true;
-          }
-          return _AnimatedFadeOutFadeIn(
-            target: child,
-            targetProxyAnimation: _imageAnimation,
-            placeholder: _image(
-              image: widget.placeholder ?? kPlaceholder,
-              errorBuilder: widget.placeholderErrorBuilder,
-              opacity: _placeholderAnimation,
-              fit: widget.placeholderFit ?? widget.fit,
-              filterQuality:
-                  widget.placeholderFilterQuality ?? widget.filterQuality,
-            ),
-            isTargetLoaded: targetLoaded,
-            placeholderProxyAnimation: _placeholderAnimation,
-            wasSynchronouslyLoaded: wasSynchronouslyLoaded,
-            fadeInDuration: widget.fadeInDuration,
-            fadeOutDuration: widget.fadeOutDuration,
-            fadeInCurve: widget.fadeInCurve,
-            fadeOutCurve: widget.fadeOutCurve,
-          );
-        },
+        frameBuilder: hasNoFade || hasCached
+            ? null
+            : (BuildContext context, Widget child, int? frame,
+                bool wasSynchronouslyLoaded) {
+                if (wasSynchronouslyLoaded || frame != null) {
+                  targetLoaded = true;
+                }
+                return _AnimatedFadeOutFadeIn(
+                  target: child,
+                  targetProxyAnimation: _imageAnimation,
+                  placeholder: _image(
+                    image: widget.placeholder ?? kPlaceholder,
+                    errorBuilder: widget.placeholderErrorBuilder,
+                    opacity: _placeholderAnimation,
+                    fit: widget.placeholderFit ?? widget.fit,
+                    filterQuality:
+                        widget.placeholderFilterQuality ?? widget.filterQuality,
+                  ),
+                  isTargetLoaded: targetLoaded,
+                  placeholderProxyAnimation: _placeholderAnimation,
+                  wasSynchronouslyLoaded: wasSynchronouslyLoaded,
+                  fadeInDuration: widget.fadeInDuration,
+                  fadeOutDuration: widget.fadeOutDuration,
+                  fadeInCurve: widget.fadeInCurve,
+                  fadeOutCurve: widget.fadeOutCurve,
+                );
+              },
       );
 
       if (!widget.excludeFromSemantics) {
