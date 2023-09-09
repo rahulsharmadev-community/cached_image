@@ -84,7 +84,6 @@ class _HomePageState extends State<HomePage> {
 
   @override
   Widget build(BuildContext context) {
-    final widgets = List<Widget>.generate(images.length, (i) => itemWidget(i));
     print('Rebuild__Screen');
     return Scaffold(
         backgroundColor: Colors.amberAccent,
@@ -112,19 +111,42 @@ class _HomePageState extends State<HomePage> {
         ),
         body: isGrid
             ? GridView.builder(
-                itemCount: widgets.length,
+                itemCount: images.length,
                 gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
                     crossAxisCount: 3),
-                itemBuilder: (ctx, i) => widgets[i])
+                itemBuilder: (ctx, i) => DisplayImage(i: i, isGrid: true))
             : ListView.builder(
                 reverse: true,
                 controller: controller,
-                itemCount: widgets.length,
-                itemBuilder: (ctx, i) => widgets[i],
+                itemCount: images.length,
+                itemBuilder: (ctx, i) => List<Widget>.generate(
+                    images.length, (i) => itemWidget(i))[i],
               ));
   }
 
-  Widget itemWidget(int i) => DisplayImage(i: i, isGrid: isGrid);
+  Widget itemWidget(int i) => CustomCard(i: i, isGrid: isGrid);
+}
+
+class CustomCard extends StatelessWidget {
+  final int i;
+  final bool isGrid;
+  const CustomCard({
+    super.key,
+    required this.i,
+    required this.isGrid,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    var width2 = MediaQuery.of(context).size.width * 0.6;
+    return Row(
+      mainAxisAlignment:
+          i % 3 == 0 ? MainAxisAlignment.start : MainAxisAlignment.end,
+      children: [
+        SizedBox(width: width2, child: DisplayImage(i: i, isGrid: isGrid)),
+      ],
+    );
+  }
 }
 
 class DisplayImage extends StatelessWidget {
@@ -139,42 +161,69 @@ class DisplayImage extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return CachedImage(
-      urls[i],
-      fit: BoxFit.cover,
-      location: i % 2 == 0 ? 'Class B' : null,
-      loadingBuilder: (ctx, value) => ValueListenableBuilder(
-        valueListenable: value.progressPercentage,
-        builder: (context, value, child) => Stack(
-          alignment: Alignment.center,
-          children: [
-            isGrid
-                ? SizedBox.square(
-                    dimension: 60,
-                    child: FittedBox(
-                      fit: BoxFit.fill,
-                      child: CircularProgressIndicator.adaptive(
-                        value: value,
-                        semanticsLabel: value.toString(),
-                        semanticsValue: value.toString(),
+    return GestureDetector(
+      onTap: () {
+        Navigator.of(context).push(MaterialPageRoute(
+            fullscreenDialog: true,
+            builder: (_) => Material(
+                  type: MaterialType.transparency,
+                  child: SizedBox.expand(
+                      child: InteractiveViewer(
+                    maxScale: 5,
+                    child: Hero(tag: urls[i], child: CachedImage(urls[i])),
+                  )),
+                )));
+      },
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Hero(
+            tag: urls[i],
+            child: CachedImage(
+              urls[i],
+              fit: BoxFit.cover,
+              location: i % 2 == 0 ? 'Class B' : null,
+              loadingBuilder: (ctx, value) => ValueListenableBuilder(
+                valueListenable: value.progressPercentage,
+                builder: (context, value, child) => Stack(
+                  alignment: Alignment.center,
+                  children: [
+                    isGrid
+                        ? SizedBox.square(
+                            dimension: 60,
+                            child: FittedBox(
+                              fit: BoxFit.fill,
+                              child: CircularProgressIndicator.adaptive(
+                                value: value,
+                                semanticsLabel: value.toString(),
+                                semanticsValue: value.toString(),
+                              ),
+                            ),
+                          )
+                        : LinearProgressIndicator(
+                            value: value,
+                            minHeight: 42,
+                            semanticsLabel: value.toString(),
+                            semanticsValue: value.toString(),
+                          ),
+                    Text(
+                      '${value * 100}%',
+                      style: TextStyle(
+                        fontSize: isGrid ? 16 : 20,
+                        fontWeight: FontWeight.w500,
                       ),
                     ),
-                  )
-                : LinearProgressIndicator(
-                    value: value,
-                    minHeight: 42,
-                    semanticsLabel: value.toString(),
-                    semanticsValue: value.toString(),
-                  ),
-            Text(
-              '${value * 100}%',
-              style: TextStyle(
-                fontSize: isGrid ? 16 : 20,
-                fontWeight: FontWeight.w500,
+                  ],
+                ),
               ),
             ),
-          ],
-        ),
+          ),
+          Text(
+            urls[i],
+            maxLines: 1,
+            overflow: TextOverflow.clip,
+          )
+        ],
       ),
     );
   }

@@ -185,8 +185,7 @@ class _CachedImageState extends State<CachedImage>
 
   ///[_loadImage] Not public API.
   Future<_ImageInfo> _loadImage(String url) async {
-    var clurl = _urlCleaner(url);
-    var token = "${_getToken(clurl)}.${_getExt(clurl)}";
+    var token = _getToken;
     final bytes = await CachedImage.storage!.read(token, widget.location);
     if (bytes != null) {
       hasCached = true;
@@ -206,6 +205,8 @@ class _CachedImageState extends State<CachedImage>
   @override
   void dispose() {
     WidgetsBinding.instance.removeObserver(this);
+
+    CachedImage.storage?.disposeFromTempCached(_getToken);
     super.dispose();
   }
 
@@ -430,11 +431,15 @@ class _CachedImageState extends State<CachedImage>
           const Duration(milliseconds: 10)); // Adjust the delay as needed
     }
   }
-}
 
-String _getToken(String bytes) => '${sha256.convert(bytes.codeUnits)}';
-String _getExt(String clurl) => clurl.substring(clurl.lastIndexOf('.') + 1);
-String _urlCleaner(String url) {
-  int x = url.lastIndexOf('?');
-  return x == -1 ? url : url.substring(0, x);
+  String get _getToken {
+    var url = _urlCleaner(widget.url);
+    var ext = url.substring(url.lastIndexOf('.') + 1);
+    return '${sha256.convert(url.codeUnits)}.$ext';
+  }
+
+  String _urlCleaner(String url) {
+    int x = url.lastIndexOf('?');
+    return x == -1 ? url : url.substring(0, x);
+  }
 }

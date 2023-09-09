@@ -8,6 +8,7 @@ class CachedStorage {
   String _rootPath = '';
   String get rootPath => _rootPath;
   final String defaultLocation;
+  Map<String, (int count, Uint8List bytes)> _tempCached = {};
   CachedStorage([this.defaultLocation = '']) {
     _initialize();
   }
@@ -23,17 +24,44 @@ class CachedStorage {
     await requestPermission();
   }
 
+  Timer? debounce;
+  List<String> get _removeList {
+    var ls = <String>[];
+    for (var e in _tempCached.entries) {
+      if (e.value.$1 == 0) ls.add(e.key);
+    }
+    return ls;
+  }
+
+  void disposeFromTempCached(String token) {
+    final temp = _tempCached[token];
+    if (temp != null) {
+      var count = temp.$1 - 1;
+      _tempCached[token] = (count, temp.$2);
+
+      if (debounce != null) debounce!.cancel();
+      debounce = Timer(Duration(seconds: 30), () {
+        _removeList.forEach((e) {
+          _tempCached.remove(e);
+        });
+      });
+    }
+  }
+
   /// token = file name + file format
   FutureOr<Uint8List?> read(String token, [String? location]) async {
+    var temp = _getFromTempCached(token);
+    if (temp != null) return temp;
     if (await requestPermission()) {
       var path = '$rootPath${locationClener(location ?? defaultLocation)}$token'
           .replaceAll('//', '/');
       var file = File(path);
       if (file.existsSync()) {
-        return await file.readAsBytes();
+        var _bytes = await file.readAsBytes();
+        _tempCached.addAll({token: (1, _bytes)});
+        return _bytes;
       }
     }
-
     return null;
   }
 
@@ -46,19 +74,32 @@ class CachedStorage {
       if (File(path).existsSync()) return;
       final file = await File(path).create(recursive: true);
       await file.writeAsBytes(bytes);
+      _tempCached.addAll({token: (1, bytes)});
     }
   }
 
-  (bool value, DateTime expiry)? _tempCache;
+  Uint8List? _getFromTempCached(String token) {
+    final temp = _tempCached[token];
+
+    if (temp != null) {
+      _tempCached.addAll({token: (temp.$1 + 1, temp.$2)});
+      return temp.$2;
+    }
+    return null;
+  }
+
+  (bool value, DateTime expiry)? _cachedOn;
   get _now => DateTime.now();
 
   FutureOr<bool> requestPermission() async {
-    var isGranted = (_tempCache?.$2.isAfter(_now) ?? false)
-        ? _tempCache!.$1
-        : !await Permission.storage.isGranted;
-    if (isGranted) {
+    var isGranted = (_cachedOn?.$2.isAfter(_now) ?? false)
+        ? _cachedOn!.$1
+        : await Permission.storage.isGranted;
+    print(isGranted);
+    if (!isGranted) {
       var state = await Permission.storage.request();
-      _tempCache = (state.isGranted, _now.add(Duration(minutes: 1)));
+      _cachedOn = (state.isGranted, _now.add(Duration(minutes: 2)));
+      print(state);
       return state.isGranted;
     }
     return true;
